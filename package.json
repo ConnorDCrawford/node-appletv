@@ -44,7 +44,6 @@
     "package.json": "^2.0.1",
     "protobufjs": "^6.8.8",
     "snake-case": "^2.1.0",
-    "sodium": "^3.0.2",
     "uuid": "^3.4.0",
     "varint": "^5.0.0"
   },
