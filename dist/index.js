@@ -20,6 +20,7 @@ exports.SupportedCommand = supported_command_1.SupportedCommand;
 * @param timeout  An optional timeout value (in seconds) to give up the search after.
 * @returns A promise that resolves to an array of AppleTV objects. If you provide a `uniqueIdentifier` the array is guaranteed to only contain one object.
 */
+console.log('=====This is a local node-appletv repo=====');
 function scan(uniqueIdentifier, timeout) {
     let browser = new browser_1.Browser();
     return browser.scan(uniqueIdentifier, timeout);

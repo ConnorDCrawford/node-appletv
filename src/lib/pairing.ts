@@ -3,7 +3,8 @@ import { v4 as uuid } from 'uuid';
 import { load } from 'protobufjs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import * as ed25519 from 'ed25519';
+//const { generateKeyPairSync } = require('crypto');
+import * as ed25519 from '@stablelib/ed25519';
 
 import { AppleTV } from './appletv';
 import { Credentials } from './credentials';
@@ -85,8 +86,11 @@ export class Pairing {
     this.srp.checkM2(this.deviceProof);
 
     let seed = crypto.randomBytes(32);
-    let keyPair = ed25519.MakeKeypair(seed);
-    let privateKey = keyPair.privateKey;
+    //'ed25519'
+    //let keyPair = crypto.generateKeyPairSync('ed25519', {modulusLength: 256});
+//    let keyPair = ed25519.MakeKeypair(seed);
+    let keyPair = ed25519.generateKeyPairFromSeed(seed);
+    let privateKey = keyPair.secretKey;
     let publicKey = keyPair.publicKey;
     let sharedSecret = this.srp.computeK();
 
@@ -98,7 +102,10 @@ export class Pairing {
       32
     );
     let deviceInfo = Buffer.concat([deviceHash, Buffer.from(this.device.pairingId), publicKey]);
-    let deviceSignature = ed25519.Sign(deviceInfo, privateKey);
+    //'ed25519'
+    //let deviceSignature = crypto.sign('ed25519', deviceInfo, privateKey);
+    //let deviceSignature = ed25519.Sign(deviceInfo, privateKey);
+    let deviceSignature = ed25519.sign(privateKey, deviceInfo);
     let encryptionKey = enc.HKDF(
       "sha512",
       Buffer.from("Pair-Setup-Encrypt-Salt"),
@@ -107,7 +114,9 @@ export class Pairing {
       32
     );
 
-    await this.sendFifthSequence(publicKey, deviceSignature, encryptionKey);
+    let pubKey = new Buffer(publicKey);
+    let devSig = new Buffer(deviceSignature);
+    await this.sendFifthSequence(pubKey, devSig, encryptionKey);
     let newMessage = await this.device.waitForSequence(0x06);
     let encryptedData = tlv.decode(newMessage.payload.pairingData)[tlv.Tag.EncryptedData];
     let cipherText = encryptedData.slice(0, -16);

@@ -11,7 +11,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const srp = require("fast-srp-hap");
 const crypto = require("crypto");
-const ed25519 = require("ed25519");
+//const { generateKeyPairSync } = require('crypto');
+const ed25519 = require("@stablelib/ed25519");
 const credentials_1 = require("./credentials");
 const tlv_1 = require("./util/tlv");
 const encryption_1 = require("./util/encryption");
@@ -35,7 +36,7 @@ class Pairing {
                 state: 2,
                 pairingData: tlvData
             };
-            yield this.device.sendMessage('CryptoPairingMessage', 'CryptoPairingMessage', requestMessage, false);
+            yield this.device.sendMessage('CryptoPairingMessage', 'CryptoPairingMessage', requestMessage, true);
             let message = yield this.device.waitForSequence(0x02);
             let pairingData = message.payload.pairingData;
             let decodedData = tlv_1.default.decode(pairingData);
@@ -72,15 +73,23 @@ class Pairing {
             // console.log("DEBUG: Device Proof=" + this.deviceProof.toString('hex'));
             this.srp.checkM2(this.deviceProof);
             let seed = crypto.randomBytes(32);
-            let keyPair = ed25519.MakeKeypair(seed);
-            let privateKey = keyPair.privateKey;
+            //'ed25519'
+            //let keyPair = crypto.generateKeyPairSync('ed25519', {modulusLength: 256});
+            //    let keyPair = ed25519.MakeKeypair(seed);
+            let keyPair = ed25519.generateKeyPairFromSeed(seed);
+            let privateKey = keyPair.secretKey;
             let publicKey = keyPair.publicKey;
             let sharedSecret = this.srp.computeK();
             let deviceHash = encryption_1.default.HKDF("sha512", Buffer.from("Pair-Setup-Controller-Sign-Salt"), sharedSecret, Buffer.from("Pair-Setup-Controller-Sign-Info"), 32);
             let deviceInfo = Buffer.concat([deviceHash, Buffer.from(this.device.pairingId), publicKey]);
-            let deviceSignature = ed25519.Sign(deviceInfo, privateKey);
+            //'ed25519'
+            //let deviceSignature = crypto.sign('ed25519', deviceInfo, privateKey);
+            //let deviceSignature = ed25519.Sign(deviceInfo, privateKey);
+            let deviceSignature = ed25519.sign(privateKey, deviceInfo);
             let encryptionKey = encryption_1.default.HKDF("sha512", Buffer.from("Pair-Setup-Encrypt-Salt"), sharedSecret, Buffer.from("Pair-Setup-Encrypt-Info"), 32);
-            yield this.sendFifthSequence(publicKey, deviceSignature, encryptionKey);
+            let pubKey = new Buffer(publicKey);
+            let devSig = new Buffer(deviceSignature);
+            yield this.sendFifthSequence(pubKey, devSig, encryptionKey);
             let newMessage = yield this.device.waitForSequence(0x06);
             let encryptedData = tlv_1.default.decode(newMessage.payload.pairingData)[tlv_1.default.Tag.EncryptedData];
             let cipherText = encryptedData.slice(0, -16);

@@ -1,6 +1,6 @@
 import { load } from 'protobufjs';
 import * as path from 'path';
-import * as ed25519 from 'ed25519';
+import * as ed25519 from '@stablelib/ed25519';
 import * as crypto from 'crypto';
 import * as curve25519 from 'curve25519-n2';
 
@@ -24,8 +24,11 @@ export class Verifier {
 
   async verify(): Promise<{}> {
     var verifyPrivate = Buffer.alloc(32);
+    //let privateKey = crypto.createSecretKey(verifyPrivate);
     curve25519.makeSecretKey(verifyPrivate);
+    //let verifyPublic = crypto.createPublicKey(verifyPrivate);
     let verifyPublic = curve25519.derivePublicKey(verifyPrivate);
+    //let { sessionPublicKey, encryptionKey, sharedSecret, pairingData } = await this.requestPairingData(verifyPublic.export(), verifyPrivate);
     let { sessionPublicKey, encryptionKey, sharedSecret, pairingData } = await this.requestPairingData(verifyPublic, verifyPrivate);
     
     let tlvData = tlv.decode(pairingData);
@@ -36,11 +39,14 @@ export class Verifier {
       throw new Error("Identifier mismatch");
     }
 
+    //let deviceInfo = Buffer.concat([sessionPublicKey, Buffer.from(identifier), verifyPublic.export()]);
     let deviceInfo = Buffer.concat([sessionPublicKey, Buffer.from(identifier), verifyPublic]);
-    if (!ed25519.Verify(deviceInfo, signature, this.device.credentials.publicKey)) {
+    //if (!crypto.verify(null, deviceInfo, this.device.credentials.publicKey, signature)) {
+    if (!ed25519.verify(this.device.credentials.publicKey, deviceInfo, signature)) {
       throw new Error("Signature verification failed");
     }
 
+    //return await this.completeVerification(verifyPublic.export(), sessionPublicKey, encryptionKey, sharedSecret);
     return await this.completeVerification(verifyPublic, sessionPublicKey, encryptionKey, sharedSecret);
   }
 
@@ -70,6 +76,8 @@ export class Verifier {
 
     let cipherText = encryptedData.slice(0, -16);
     let hmac = encryptedData.slice(-16);
+    //let dh = crypto.createDiffieHellman();
+    //let sharedSecret = dh.computeSecret(sessionPublicKey);
     let sharedSecret = curve25519.deriveSharedSecret(verifyPrivate, sessionPublicKey);
     let encryptionKey = enc.HKDF(
       "sha512",
@@ -90,8 +98,10 @@ export class Verifier {
 
   private async completeVerification(verifyPublic: Buffer, sessionPublicKey: Buffer, encryptionKey: Buffer, sharedSecret: Buffer): Promise<{}> {
     let material = Buffer.concat([verifyPublic, Buffer.from(this.device.credentials.pairingId), sessionPublicKey]);
-    let keyPair = ed25519.MakeKeypair(this.device.credentials.encryptionKey);
-    let signed = ed25519.Sign(material, keyPair);
+    //let keyPair = crypto.generateKeyPairSync('ed25519', this.device.credentials.encryptionKey);
+    let keyPair = ed25519.generateKeyPairFromSeed(this.device.credentials.encryptionKey);
+    //let signed = crypto.sign('ed25519', material, keyPair);
+    let signed = ed25519.sign(keyPair.secretKey, material);
     let plainTLV = tlv.encode(
       tlv.Tag.Username, Buffer.from(this.device.credentials.pairingId),
       tlv.Tag.Signature, signed

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const ed25519 = require("ed25519");
+const ed25519 = require("@stablelib/ed25519");
 const curve25519 = require("curve25519-n2");
 const tlv_1 = require("./util/tlv");
 const encryption_1 = require("./util/encryption");
@@ -20,8 +20,11 @@ class Verifier {
     verify() {
         return __awaiter(this, void 0, void 0, function* () {
             var verifyPrivate = Buffer.alloc(32);
+            //let privateKey = crypto.createSecretKey(verifyPrivate);
             curve25519.makeSecretKey(verifyPrivate);
+            //let verifyPublic = crypto.createPublicKey(verifyPrivate);
             let verifyPublic = curve25519.derivePublicKey(verifyPrivate);
+            //let { sessionPublicKey, encryptionKey, sharedSecret, pairingData } = await this.requestPairingData(verifyPublic.export(), verifyPrivate);
             let { sessionPublicKey, encryptionKey, sharedSecret, pairingData } = yield this.requestPairingData(verifyPublic, verifyPrivate);
             let tlvData = tlv_1.default.decode(pairingData);
             let identifier = tlvData[tlv_1.default.Tag.Username];
@@ -29,10 +32,13 @@ class Verifier {
             if (!identifier.equals(this.device.credentials.identifier)) {
                 throw new Error("Identifier mismatch");
             }
+            //let deviceInfo = Buffer.concat([sessionPublicKey, Buffer.from(identifier), verifyPublic.export()]);
             let deviceInfo = Buffer.concat([sessionPublicKey, Buffer.from(identifier), verifyPublic]);
-            if (!ed25519.Verify(deviceInfo, signature, this.device.credentials.publicKey)) {
+            //if (!crypto.verify(null, deviceInfo, this.device.credentials.publicKey, signature)) {
+            if (!ed25519.verify(this.device.credentials.publicKey, deviceInfo, signature)) {
                 throw new Error("Signature verification failed");
             }
+            //return await this.completeVerification(verifyPublic.export(), sessionPublicKey, encryptionKey, sharedSecret);
             return yield this.completeVerification(verifyPublic, sessionPublicKey, encryptionKey, sharedSecret);
         });
     }
@@ -57,6 +63,8 @@ class Verifier {
             }
             let cipherText = encryptedData.slice(0, -16);
             let hmac = encryptedData.slice(-16);
+            //let dh = crypto.createDiffieHellman();
+            //let sharedSecret = dh.computeSecret(sessionPublicKey);
             let sharedSecret = curve25519.deriveSharedSecret(verifyPrivate, sessionPublicKey);
             let encryptionKey = encryption_1.default.HKDF("sha512", Buffer.from("Pair-Verify-Encrypt-Salt"), sharedSecret, Buffer.from("Pair-Verify-Encrypt-Info"), 32);
             let decryptedData = encryption_1.default.verifyAndDecrypt(cipherText, hmac, null, Buffer.from('PV-Msg02'), encryptionKey);
@@ -71,8 +79,10 @@ class Verifier {
     completeVerification(verifyPublic, sessionPublicKey, encryptionKey, sharedSecret) {
         return __awaiter(this, void 0, void 0, function* () {
             let material = Buffer.concat([verifyPublic, Buffer.from(this.device.credentials.pairingId), sessionPublicKey]);
-            let keyPair = ed25519.MakeKeypair(this.device.credentials.encryptionKey);
-            let signed = ed25519.Sign(material, keyPair);
+            //let keyPair = crypto.generateKeyPairSync('ed25519', this.device.credentials.encryptionKey);
+            let keyPair = ed25519.generateKeyPairFromSeed(this.device.credentials.encryptionKey);
+            //let signed = crypto.sign('ed25519', material, keyPair);
+            let signed = ed25519.sign(keyPair.secretKey, material);
             let plainTLV = tlv_1.default.encode(tlv_1.default.Tag.Username, Buffer.from(this.device.credentials.pairingId), tlv_1.default.Tag.Signature, signed);
             let encryptedTLV = Buffer.concat(encryption_1.default.encryptAndSeal(plainTLV, null, Buffer.from('PV-Msg03'), encryptionKey));
             let tlvData = tlv_1.default.encode(tlv_1.default.Tag.Sequence, 0x03, tlv_1.default.Tag.EncryptedData, encryptedTLV);
