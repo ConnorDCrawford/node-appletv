@@ -29,7 +29,8 @@ export class Browser {
       if (that.uniqueIdentifier && device.uid == that.uniqueIdentifier) {
         that.browser.stop();
         that.onComplete([device]);
-      } else {
+      } else if (that.services.findIndex(service => service.uid === device.uid) === -1) {
+        console.log('Found device with UUID ' + device.uid);
         that.services.push(device);
       }
     });
@@ -57,7 +58,6 @@ export class Browser {
           reject(new Error("Failed to locate specified AppleTV on the network"));
         } else {
           resolve(that.services
-             .filter((service, i) => that.services.findIndex(a => a.uid === service.uid) === i)
              .sort((a, b) => {
                return a > b ? 1 : -1;
              }));
