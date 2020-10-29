@@ -57,6 +57,7 @@ export class Browser {
           reject(new Error("Failed to locate specified AppleTV on the network"));
         } else {
           resolve(that.services
+             .filter((service, i) => that.services.findIndex(a => a.uid === service.uid) === i)
              .sort((a, b) => {
                return a > b ? 1 : -1;
              }));
