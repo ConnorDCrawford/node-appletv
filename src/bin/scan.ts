@@ -11,6 +11,9 @@ export function scan(logger: Logger, timeout?: number, uniqueIdentifier?: string
   return browser
     .scan(uniqueIdentifier, timeout)
     .then(devices => {
+      devices = devices.filter((service, i, arr) =>
+          arr.findIndex(t => t.address === service.address && t.port === service.port) === i
+      );
       spinner.stop();
       if (devices.length == 1) {
         return devices[0];
