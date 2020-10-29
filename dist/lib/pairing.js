@@ -36,7 +36,7 @@ class Pairing {
                 state: 2,
                 pairingData: tlvData
             };
-            yield this.device.sendMessage('CryptoPairingMessage', 'CryptoPairingMessage', requestMessage, true);
+            yield this.device.sendMessage('CryptoPairingMessage', 'CryptoPairingMessage', requestMessage, false);
             let message = yield this.device.waitForSequence(0x02);
             let pairingData = message.payload.pairingData;
             let decodedData = tlv_1.default.decode(pairingData);
