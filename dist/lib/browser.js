@@ -22,7 +22,7 @@ class Browser {
                 that.browser.stop();
                 that.onComplete([device]);
             }
-            else {
+            else if (that.services.findIndex(service => service.address === device.address && service.port === device.port) === -1) {
                 that.services.push(device);
             }
         });
@@ -49,6 +49,7 @@ class Browser {
                 }
                 else {
                     resolve(that.services
+                        .filter((service, i, arr) => arr.findIndex(t => t.address === service.address && t.port === service.port) === i)
                         .sort((a, b) => {
                         return a > b ? 1 : -1;
                     }));
